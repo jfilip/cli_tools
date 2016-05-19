@@ -1,0 +1,82 @@
+#!/usr/bin/env ruby
+
+class MergedBranchCleanup
+  attr_reader :remote, :branch
+
+  class << self
+    def run(remote="origin", branch="master")
+      MergedBranchCleanup.new(remote, branch).start
+    end
+
+    def usage
+      puts "Usage #{__FILE__} [remote branch]"
+    end
+  end
+
+  def initialize(remote_arg, branch_arg)
+    @remote = remote_arg
+    @branch = branch_arg
+  end
+
+  def start
+    delete_local_branches
+    prune_remote
+  end
+
+private
+
+  IGNORE_BRANCHES = %w(master develop).freeze
+
+  def delete_local_branches
+    $stdout.sync = true
+    branches_to_remove.each do |b|
+      print "Removing local branch #{b} . . . "
+      `git branch -D #{b}`
+      puts "done!"
+    end
+  end
+
+  def prune_remote
+    $stdout.sync = true
+    print "Pruning remote #{remote} . . . "
+    `git remote prune #{remote}`
+    puts "done!"
+  end
+
+  def branches_to_remove
+    merged_branches & local_branches
+  end
+
+  def merged_branches
+    branch_names_short.reject { |b| IGNORE_BRANCHES.include? b }.uniq
+  end
+
+  def branch_names_short
+    branch_names_long.map { |b| b.to_s.gsub %r{^[A-z0-9\-_]+/}, "" }
+  end
+
+  def branch_names_long
+    merge_logs_branches.map { |l| l.match %r{[A-z0-9\.\-_/]+$} }.compact
+  end
+
+  def merge_logs_branches
+    merge_logs.select { |l| l.match(/(Merge branch|Merge pull request)/) }
+  end
+
+  def merge_logs
+    `git log --merges --oneline`.split("\n")
+  end
+
+  def local_branches
+    `git branch`.split("\n").map { |b| b.match(%r{[A-z0-9\-_/]+$}).to_s }
+  end
+end
+
+case ARGV.length
+when 0
+  MergedBranchCleanup.run
+when 2
+  MergedBranchCleanup.run ARGV.shift, ARGV.shift
+else
+  MergedBranchCleanup.usage
+end
