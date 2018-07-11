@@ -4,7 +4,7 @@ class MergedBranchCleanup
   attr_reader :remote, :branch
 
   class << self
-    def run(remote="origin", branch="master")
+    def run(remote: "origin", branch: "master")
       MergedBranchCleanup.new(remote, branch).start
     end
 
@@ -76,7 +76,7 @@ case ARGV.length
 when 0
   MergedBranchCleanup.run
 when 2
-  MergedBranchCleanup.run ARGV.shift, ARGV.shift
+  MergedBranchCleanup.run remote: ARGV.shift, origin: ARGV.shift
 else
   MergedBranchCleanup.usage
 end
